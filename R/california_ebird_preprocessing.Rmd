@@ -1,0 +1,97 @@
+---
+title: "California eBird Exploration"
+output:
+  github_document:
+    toc: true
+---
+
+I have the full eBrid data of observations from California from January - March. In this notebook I will document my process of initial exploration.
+
+```{r}
+library(tidyverse)
+library(auk)
+library(ggmap)
+library(lubridate)
+library(glue)
+
+theme_set(theme_minimal())
+```
+
+
+
+
+## Data wrangling and import using auk package
+
+```{r}
+print(bcr_codes)
+```
+
+
+
+```{r}
+
+bcr_filtering <- function(
+    BCR, 
+    out_filename, 
+    ebd_path='/Users/chad/Documents/avian/data/ebd_US-CA_202001_202003_relMar-2020'
+  ){
+  
+    ca_ebird_file <- glue('{ebd_path}/ebd_US-CA_202001_202003_relMar-2020.txt')
+    
+    # apply BCR filter
+    f_out0 <- glue('{ebd_path}/{out_filename}_intermediate.txt')
+    bcr_filter <- ca_ebird_file %>%
+      auk_ebd() %>% 
+      auk_bcr(bcr = BCR) %>%
+      auk_filter(file = f_out0, overwrite = TRUE) 
+    
+    # Select columns
+    keep_columns <- c("group_identifier", "sampling_event_identifier", 
+                  "taxonomic_order","category","common_name","scientific_name",
+                  "iba_code","bcr_code","usfws_code","locality","locality_id","locality_type",
+                  "county","latitude","longitude","observation_date","time_observations_started",
+                  "observer_id","observation_count")
+    
+    f_out1 <- glue('{ebd_path}/{out_filename}.txt')
+    selected_cols <- f_out0 %>% 
+      auk_ebd() %>% 
+      auk_select(select = keep_columns, file = f_out1, overwrite = TRUE)
+}
+
+```
+
+
+
+### Filter to coastal California BCR 
+```{r}
+bcr_filtering(32, 'coastalCA_ebd')
+```
+
+
+### Sierra Nevada filtering 
+
+```{r}
+bcr_filtering(15, 'sierranevada_ebd')
+```
+
+
+# Read in Sierra Nevada file
+
+```{r}
+ebd_path <- '/Users/chad/Documents/avian/data/ebd_US-CA_202001_202003_relMar-2020'
+sierra_nevada_file <- glue('{ebd_path}/sierranevada_ebd.txt')
+sierra_nevada <- sierra_nevada_file %>% read_ebd()
+
+str(sierra_nevada)
+```
+
+
+```{r}
+species_summary <- sierra_nevada %>% 
+  group_by(common_name,scientific_name) %>%
+  summarise(obs = n()) %>%
+  arrange(desc(obs))
+
+head(species_summary,10)
+```
+
